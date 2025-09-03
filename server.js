@@ -1,30 +1,71 @@
 // server.js
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import generateVideoRouter from "./api/generate-video.js";
+import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+app.use(cors());           // Browser fetch လိုက်လို့ရအောင်
+app.use(express.json());   // JSON body support
 
-// Express config
-app.use(express.json());
+const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-// API route (mounted from api/generate-video.js)
-app.use("/api", generateVideoRouter);
+// Proxy endpoint: Browser -> Render -> Gemini API
+app.post("/generate-video", async (req, res) => {
+  try {
+    const { apiKey, model, prompt, negativePrompt, aspectRatio, resolution, personGeneration } = req.body;
 
-// --- Serve frontend (static files) ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+    if(!apiKey || !prompt || !model){
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
 
-app.use(express.static(path.join(__dirname, "public")));
+    const startResp = await fetch(`${BASE}/models/${encodeURIComponent(model)}:predictLongRunning`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: {
+          aspectRatio,
+          resolution,
+          ...(negativePrompt ? { negativePrompt } : {}),
+          ...(personGeneration ? { personGeneration } : {})
+        }
+      })
+    });
 
-// Root route → show index.html
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+    if (!startResp.ok) {
+      const errText = await startResp.text();
+      return res.status(500).json({ error: errText });
+    }
+
+    const op = await startResp.json();
+    res.json(op);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+// Polling endpoint: Browser calls to check job status
+app.get("/poll/:opName", async (req, res) => {
+  try {
+    const { opName } = req.params;
+    const apiKey = req.query.apiKey;
+    if(!apiKey) return res.status(400).json({ error: "Missing apiKey query parameter" });
+
+    const pollResp = await fetch(`${BASE}/${opName}`, {
+      headers: { "x-goog-api-key": apiKey }
+    });
+
+    const data = await pollResp.json();
+    res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Proxy server running on port ${PORT}`));
