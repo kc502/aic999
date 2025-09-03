@@ -1,10 +1,13 @@
 {
-  "name": "veo3-proxy",
+  "name": "video-generator",
   "version": "1.0.0",
-  "main": "api/generate-video.js",
+  "main": "server.js",
   "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.18.2",
     "node-fetch": "^3.3.2"
   }
 }

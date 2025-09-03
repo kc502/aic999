@@ -1,127 +1,44 @@
 <!DOCTYPE html>
-<html lang="my">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Veo 3 Video Generator (Render Proxy)</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#0b1020; color:#eee; }
-    .card { background:#121933; border-radius:12px; padding:16px; margin:16px; }
-    .btn { background:#5b7cff; color:white; border:0; padding:10px 14px; border-radius:8px; cursor:pointer }
-    textarea,input,select { width:100%; margin-bottom:10px; padding:8px; border-radius:8px; border:1px solid #333; background:#0f1738; color:white }
-    video { width:100%; margin-top:10px; border-radius:12px; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Generator</title>
 </head>
-<body>
-  <div class="card">
-    <h2>🎬 Veo 3 Video Generator</h2>
-    <label>API Key</label>
-    <input id="key" type="password" placeholder="Paste your Gemini API key" />
+<body style="font-family: sans-serif; padding: 20px;">
+  <h2>🎬 Video Generator</h2>
 
-    <label>Prompt</label>
-    <textarea id="prompt" placeholder="Eg: A cinematic dolly shot across a rainy neon Tokyo alley"></textarea>
+  <label>API Key:</label><br>
+  <input id="apiKey" type="password" placeholder="Enter API Key" style="width:300px;"><br><br>
 
-    <label>Negative Prompt</label>
-    <input id="neg" type="text" placeholder="blurry, low quality" />
+  <label>Prompt:</label><br>
+  <textarea id="prompt" placeholder="Describe your video..." rows="4" cols="40"></textarea><br><br>
 
-    <label>Model</label>
-    <select id="model">
-      <option value="veo-3.0-generate-preview">veo-3.0-generate-preview</option>
-      <option value="veo-3.0-fast-generate-preview">veo-3.0-fast-generate-preview</option>
-      <option value="veo-2.0-generate">veo-2.0-generate (silent)</option>
-    </select>
+  <button onclick="generate()">Generate Video</button>
 
-    <label>Aspect Ratio</label>
-    <select id="aspect">
-      <option value="16:9">16:9</option>
-      <option value="9:16">9:16</option>
-      <option value="1:1">1:1</option>
-    </select>
-
-    <label>Resolution</label>
-    <select id="resolution">
-      <option value="720p">1280×720</option>
-      <option value="1080p" selected>1920×1080</option>
-      <option value="1440p">2560×1440</option>
-      <option value="2160p">3840×2160</option>
-    </select>
-
-    <label>Persons</label>
-    <select id="persons">
-      <option value="allow_all">allow_all</option>
-      <option value="allow_adult">allow_adult</option>
-      <option value="dont_allow">dont_allow</option>
-    </select>
-
-    <button id="go" class="btn">▶ Generate Video</button>
-    <div id="status"></div>
-
-    <video id="player" controls playsinline></video>
-    <a id="download" class="btn" href="#" download="veo-output.mp4" style="display:none">⬇ Download MP4</a>
-  </div>
+  <pre id="output" style="margin-top:20px; background:#f0f0f0; padding:10px;"></pre>
 
   <script>
-    const els = id => document.getElementById(id);
+    async function generate() {
+      const apiKey = document.getElementById("apiKey").value;
+      const prompt = document.getElementById("prompt").value;
+      const output = document.getElementById("output");
 
-    els("go").addEventListener("click", async () => {
-      const apiKey = els("key").value.trim();
-      const prompt = els("prompt").value.trim();
-      const negativePrompt = els("neg").value.trim();
-      const aspectRatio = els("aspect").value;
-      const personGeneration = els("persons").value;
-      const model = els("model").value;
-      const resolution = els("resolution").value;
-
-      if (!apiKey || !prompt) {
-        alert("Please fill API key and prompt!");
-        return;
-      }
-
-      els("status").textContent = "⏳ Starting job...";
-      els("go").disabled = true;
+      output.textContent = "⏳ Generating video...";
 
       try {
-        // Start job
-        const startResp = await fetch("/api/generate", {
+        const res = await fetch("/api/generate-video", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey, model, prompt, negativePrompt, aspectRatio, resolution, personGeneration })
+          body: JSON.stringify({ apiKey, prompt })
         });
-        const op = await startResp.json();
-        if (op.error) throw new Error(op.error);
 
-        let done = false, status;
-        while (!done) {
-          await new Promise(r => setTimeout(r, 5000));
-          const pollResp = await fetch("/api/poll", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ apiKey, name: op.name })
-          });
-          status = await pollResp.json();
-          done = !!status.done;
-          els("status").textContent = "⌛ Processing...";
-          if (status.error) throw new Error(status.error.message);
-        }
-
-        const uri = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
-        if (!uri) throw new Error("No video URI");
-
-        const vidResp = await fetch(uri, { headers: { "x-goog-api-key": apiKey } });
-        const blob = await vidResp.blob();
-        const url = URL.createObjectURL(blob);
-
-        els("player").src = url;
-        els("player").play().catch(()=>{});
-        els("download").href = url;
-        els("download").style.display = "inline-block";
-        els("status").textContent = "✅ Done";
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
       } catch (err) {
-        els("status").textContent = "❌ " + err.message;
-      } finally {
-        els("go").disabled = false;
+        output.textContent = "❌ Error: " + err.message;
       }
-    });
+    }
   </script>
 </body>
 </html>
