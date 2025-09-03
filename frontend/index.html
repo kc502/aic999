@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8" />
+<title>Veo 3 Proxy Video Generator</title>
+<style>
+body{font-family:sans-serif; background:#0b1020;color:#e6ecff;padding:20px;}
+textarea,input,select,button{width:100%;margin:6px 0;padding:10px;border-radius:8px;border:none;}
+button{background:#5b7cff;color:#fff;font-weight:bold;cursor:pointer;}
+video{width:100%;margin-top:10px;border-radius:12px;}
+</style>
+</head>
+<body>
+
+<h2>Veo 3 (Proxy)</h2>
+<label>Gemini API key</label>
+<input id="key" type="password" placeholder="Paste your key" />
+
+<label>Model</label>
+<select id="model">
+<option value="veo-3.0-generate-preview">veo-3.0-generate-preview</option>
+<option value="veo-3.0-fast-generate-preview">veo-3.0-fast-generate-preview</option>
+<option value="veo-2.0-generate">veo-2.0-generate</option>
+</select>
+
+<label>Aspect ratio</label>
+<select id="aspect">
+<option value="16:9">16:9</option>
+<option value="9:16">9:16</option>
+<option value="1:1">1:1</option>
+</select>
+
+<label>Resolution</label>
+<select id="resolution">
+<option value="720p">1280×720</option>
+<option value="1080p" selected>1920×1080</option>
+<option value="1440p">2560×1440</option>
+<option value="2160p">3840×2160</option>
+</select>
+
+<label>Prompt</label>
+<textarea id="prompt" placeholder="Enter prompt..."></textarea>
+<label>Negative prompt (optional)</label>
+<input id="neg" type="text" placeholder="Eg: blurry, low quality">
+
+<button id="go">▶ Generate Video</button>
+
+<h3>Result</h3>
+<video id="player" controls></video>
+<a id="download" href="#" download="output.mp4" style="display:none;">⬇ Download MP4</a>
+<div id="meta"></div>
+
+<script>
+const PROXY_URL = "https://aic999.onrender.com"; // Render deploy URL
+
+const els=id=>document.getElementById(id);
+
+els("go").addEventListener("click", async()=>{
+  const apiKey=els("key").value.trim();
+  const model=els("model").value;
+  const prompt=els("prompt").value.trim();
+  const negativePrompt=els("neg").value;
+  const aspectRatio=els("aspect").value;
+  const resolution=els("resolution").value;
+
+  if(!apiKey||!prompt){alert("API key and prompt required");return;}
+
+  els("go").disabled=true;
+  els("player").removeAttribute("src"); els("player").load();
+  els("download").style.display="none"; els("meta").textContent="";
+
+  try{
+    const startResp=await fetch(`${PROXY_URL}/generate-video`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({apiKey,model,prompt,negativePrompt,aspectRatio,resolution})
+    });
+    if(!startResp.ok)throw new Error(await startResp.text());
+    const op=await startResp.json();
+    const opName=op.name;
+
+    // Polling
+    let done=false;
+    while(!done){
+      await new Promise(r=>setTimeout(r,5000));
+      const pollResp=await fetch(`${PROXY_URL}/poll/${opName}?apiKey=${apiKey}`);
+      const status=await pollResp.json();
+      done=!!status.done;
+      if(status.error)throw new Error(status.error.message);
+      if(done){
+        const uri=status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+        if(!uri)throw new Error("No video URI");
+        const vidResp=await fetch(uri,{headers:{"x-goog-api-key":apiKey}});
+        const blob=await vidResp.blob();
+        const url=URL.createObjectURL(blob);
+        els("player").src=url;
+        els("player").play().catch(()=>{});
+        els("download").href=url; els("download").style.display="inline-block";
+        els("meta").textContent=(blob.size/1024/1024).toFixed(2)+" MB";
+      }
+    }
+
+  }catch(err){alert(err);console.error(err);}
+  finally{els("go").disabled=false;}
+});
+</script>
+</body>
+</html>
