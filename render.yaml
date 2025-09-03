@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: veo3-proxy
+    env: node
+    buildCommand: "npm install"
+    startCommand: "node api/generate-video.js"
+    plan: free
