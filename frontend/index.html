@@ -1,29 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gemini Veo-3 Video Generator</title>
+  <style>
+    body { background:#0b1020; color:#e6ecff; font-family:Arial, sans-serif; text-align:center; padding:20px; }
+    input, textarea, button { margin:10px; padding:10px; border-radius:8px; border:none; }
+    button { background:#3a57e8; color:#fff; cursor:pointer; }
+    pre { text-align:left; background:#121933; padding:15px; border-radius:8px; overflow:auto; }
+  </style>
 </head>
 <body>
-  <h2>🎥 Gemini Veo-3 Video Generator (BYOK)</h2>
-  <input id="apiKey" placeholder="Enter your Gemini API Key"><br><br>
-  <textarea id="prompt" placeholder="Enter prompt here"></textarea><br><br>
-  <button onclick="generate()">Generate</button>
-  <pre id="result"></pre>
+  <h1>🎬 Gemini Veo-3 Video Generator</h1>
+
+  <input id="apiKey" type="text" placeholder="Enter your Gemini API Key" size="40" />
+  <br />
+  <textarea id="prompt" rows="4" cols="50" placeholder="Describe the video you want..."></textarea>
+  <br />
+  <button onclick="generate()">Generate Video</button>
+
+  <h2>Result</h2>
+  <pre id="result">Waiting...</pre>
 
   <script>
     async function generate() {
-      const apiKey = document.getElementById("apiKey").value;
-      const prompt = document.getElementById("prompt").value;
+      const apiKey = document.getElementById("apiKey").value.trim();
+      const prompt = document.getElementById("prompt").value.trim();
 
-      const res = await fetch("https://aic999.onrender.com/api/generate-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, prompt })
-      });
+      if (!apiKey || !prompt) {
+        document.getElementById("result").textContent = "⚠️ Please enter both API Key and Prompt.";
+        return;
+      }
 
-      const data = await res.json();
-      document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+      try {
+        const res = await fetch("https://aic999.onrender.com/api/generate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, prompt })
+        });
+
+        const data = await res.json();
+        document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("result").textContent = "❌ Error: " + err;
+        console.error(err);
+      }
     }
   </script>
 </body>

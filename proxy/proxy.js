@@ -1,8 +1,10 @@
 import express from "express";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors()); // ✅ frontend က request လွတ်လွတ်ထားနိုင်မယ်
 
 // Gemini video generation (Veo-3)
 app.post("/api/generate-video", async (req, res) => {
@@ -13,12 +15,12 @@ app.post("/api/generate-video", async (req, res) => {
   }
 
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo", {
+    // ✅ Google Generative Language API သုံးတဲ့ URL
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: { text: prompt },
         config: { durationSeconds: 5, resolution: "720p" }
@@ -35,4 +37,4 @@ app.post("/api/generate-video", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Proxy running on port ${PORT}`));
