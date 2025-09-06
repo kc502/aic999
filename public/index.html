@@ -23,9 +23,7 @@ $('btnGenerate').addEventListener('click', async () => {
   const apiKey = $('apiKey').value.trim()
   const resultDiv = $('result')
 
-  if (!prompt || !apiKey) {
-    return alert('Prompt and API Key required!')
-  }
+  if (!prompt || !apiKey) return alert('Prompt and API Key required!')
 
   resultDiv.textContent = 'Submitting video generation request…'
 
@@ -42,7 +40,7 @@ $('btnGenerate').addEventListener('click', async () => {
       startData = JSON.parse(text)
     } catch(e) {
       console.error('Worker returned non-JSON:', text)
-      resultDiv.textContent = 'Unexpected response from server. Check Worker URL.'
+      resultDiv.textContent = 'Unexpected response from Worker. Check URL & API Key.'
       return
     }
   } catch(err) {
@@ -52,14 +50,12 @@ $('btnGenerate').addEventListener('click', async () => {
 
   if (startData.error) {
     resultDiv.textContent = `Error: ${startData.error}`
-    console.log(startData)
     return
   }
 
   const operationId = startData.name || startData.operationId
   if (!operationId) {
     resultDiv.textContent = 'No operationId returned. Check API response.'
-    console.log(startData)
     return
   }
 
@@ -84,11 +80,9 @@ $('btnGenerate').addEventListener('click', async () => {
       }
 
       const videoUrl = data.output?.[0]?.uri
-      if (videoUrl) {
-        resultDiv.innerHTML = `<video controls src="${videoUrl}" width="480"></video>`
-      } else {
-        setTimeout(pollVideo, 3000)
-      }
+      if (videoUrl) resultDiv.innerHTML = `<video controls src="${videoUrl}" width="480"></video>`
+      else setTimeout(pollVideo, 3000)
+
     } catch (err) {
       resultDiv.textContent = `Network error: ${err.message}`
     }
