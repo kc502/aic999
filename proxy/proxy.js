@@ -1,40 +1,60 @@
 import express from "express";
 import fetch from "node-fetch";
-import cors from "cors";
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // ✅ frontend က request လွတ်လွတ်ထားနိုင်မယ်
 
-// Gemini video generation (Veo-3)
 app.post("/api/generate-video", async (req, res) => {
   const { apiKey, prompt } = req.body;
 
   if (!apiKey || !prompt) {
-    return res.status(400).json({ error: "API key and prompt required" });
+    return res.status(400).json({ error: "Missing apiKey or prompt" });
   }
 
   try {
-    // ✅ Google Generative Language API သုံးတဲ့ URL
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=${apiKey}`;
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=" + apiKey,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: {
+            text: prompt
+          }
+        }),
+      }
+    );
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: { text: prompt },
-        config: { durationSeconds: 5, resolution: "720p" }
-      })
-    });
+    // Debugging: raw response log
+    const text = await response.text();
+    console.log("Gemini raw response:", text);
 
-    const data = await response.json();
+    if (!response.ok) {
+      return res.status(500).json({
+        error: "Gemini API call failed",
+        detail: text,
+      });
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return res.status(500).json({
+        error: "Invalid JSON from Gemini",
+        detail: text,
+      });
+    }
+
     res.json(data);
 
-  } catch (err) {
-    console.error("Proxy Error:", err);
-    res.status(500).json({ error: "Proxy server error" });
+  } catch (error) {
+    console.error("Proxy error:", error);
+    res.status(500).json({ error: "Proxy server error", detail: error.message });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Proxy running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Proxy server running on port ${PORT}`);
+});
