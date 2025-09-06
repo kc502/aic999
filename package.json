@@ -1,0 +1,11 @@
+{
+  "name": "veo3-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "serve public",
+    "build": "echo 'No build step needed for static HTML'"
+  },
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini BYOK Video Generator</title>
+</head>
+<body>
+<h1>Gemini Video Generator (Browser + BYOK)</h1>
+
+<input type="text" id="apiKey" placeholder="Enter Gemini API Key" size="50"/><br/><br/>
+<input type="text" id="prompt" placeholder="Enter prompt" size="50"/>
+<button id="btnGenerate">Generate Video</button>
+
+<div id="result"></div>
+
+<script>
+const $ = id => document.getElementById(id)
+const WORKER_URL = 'https://gemini-proxy.hlawnchit21.workers.dev'
+
+$('btnGenerate').addEventListener('click', async () => {
+  const prompt = $('prompt').value.trim()
+  const apiKey = $('apiKey').value.trim()
+  const resultDiv = $('result')
+
+  if (!prompt || !apiKey) {
+    return alert('Prompt and API Key required!')
+  }
+
+  resultDiv.textContent = 'Submitting video generation request…'
+
+  const startRes = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt, apiKey })
+  })
+
+  const startData = await startRes.json()
+  if (startData.error) {
+    resultDiv.textContent = `Error: ${startData.error}`
+    console.log(startData)
+    return
+  }
+
+  const operationId = startData.name || startData.operationId
+  if (!operationId) {
+    resultDiv.textContent = 'No operationId returned. Check API response.'
+    console.log(startData)
+    return
+  }
+
+  resultDiv.textContent = 'Video is being generated, please wait…'
+
+  const pollVideo = async () => {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ operationId, apiKey })
+      })
+      const data = await res.json()
+      const videoUrl = data.output?.[0]?.uri
+      if (videoUrl) {
+        resultDiv.innerHTML = `<video controls src="${videoUrl}" width="480"></video>`
+      } else {
+        setTimeout(pollVideo, 3000)
+      }
+    } catch (err) {
+      resultDiv.textContent = `Network error: ${err.message}`
+    }
+  }
+
+  pollVideo()
+})
+</script>
+</body>
+</html>
