@@ -16,7 +16,7 @@
 
 <script>
 const $ = id => document.getElementById(id)
-const WORKER_URL = 'https://gemini-proxy.hlawnchit21.workers.dev'
+const WORKER_URL = 'https://gemini-proxy.hlawnchit21.workers.dev/'
 
 $('btnGenerate').addEventListener('click', async () => {
   const prompt = $('prompt').value.trim()
@@ -29,13 +29,27 @@ $('btnGenerate').addEventListener('click', async () => {
 
   resultDiv.textContent = 'Submitting video generation request…'
 
-  const startRes = await fetch(WORKER_URL, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ prompt, apiKey })
-  })
+  let startData
+  try {
+    const startRes = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt, apiKey })
+    })
 
-  const startData = await startRes.json()
+    const text = await startRes.text()
+    try {
+      startData = JSON.parse(text)
+    } catch(e) {
+      console.error('Worker returned non-JSON:', text)
+      resultDiv.textContent = 'Unexpected response from server. Check Worker URL.'
+      return
+    }
+  } catch(err) {
+    resultDiv.textContent = `Network error: ${err.message}`
+    return
+  }
+
   if (startData.error) {
     resultDiv.textContent = `Error: ${startData.error}`
     console.log(startData)
@@ -58,7 +72,17 @@ $('btnGenerate').addEventListener('click', async () => {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ operationId, apiKey })
       })
-      const data = await res.json()
+
+      const text = await res.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch(e) {
+        console.error('Polling returned non-JSON:', text)
+        setTimeout(pollVideo, 3000)
+        return
+      }
+
       const videoUrl = data.output?.[0]?.uri
       if (videoUrl) {
         resultDiv.innerHTML = `<video controls src="${videoUrl}" width="480"></video>`
